@@ -24,6 +24,7 @@ public class MainActivity extends Activity {
     private TextToSpeech tts;
     private SpeechRecognizer recognizer;
     private boolean ttsReady = false;
+    private String pendingText = null;
 
     @Override
     public void onCreate(Bundle b) {
@@ -50,6 +51,8 @@ public class MainActivity extends Activity {
 
     private void inicializarTTS() {
 
+        ttsReady = false;
+
         tts = new TextToSpeech(this, status -> {
 
             if (status == TextToSpeech.SUCCESS) {
@@ -61,14 +64,88 @@ public class MainActivity extends Activity {
 
                     ttsReady = false;
 
+                    mostrarMensaje(
+                        "No está instalada la voz italiana. Ve a Ajustes > Texto a voz y descarga italiano."
+                    );
+
                 } else {
 
                     ttsReady = true;
+
                     tts.setSpeechRate(0.85f);
                     tts.setPitch(1.0f);
+
+                    if (pendingText != null) {
+                        String texto = pendingText;
+                        pendingText = null;
+                        hablar(texto);
+                    }
                 }
+
+            } else {
+
+                ttsReady = false;
+
+                mostrarMensaje(
+                    "No se pudo iniciar el sistema de voz de Android."
+                );
             }
         });
+    }
+
+    private void hablar(String texto) {
+
+        if (tts == null || !ttsReady) {
+            pendingText = texto;
+            inicializarTTS();
+            return;
+        }
+
+        int idioma = tts.setLanguage(Locale.ITALIAN);
+
+        if (idioma == TextToSpeech.LANG_MISSING_DATA ||
+            idioma == TextToSpeech.LANG_NOT_SUPPORTED) {
+
+            mostrarMensaje(
+                "La voz italiana no está disponible en este teléfono."
+            );
+
+            return;
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+
+            tts.speak(
+                texto,
+                TextToSpeech.QUEUE_FLUSH,
+                null,
+                "italiano28"
+            );
+
+        } else {
+
+            tts.speak(
+                texto,
+                TextToSpeech.QUEUE_FLUSH,
+                null
+            );
+        }
+    }
+
+    private void mostrarMensaje(String mensaje) {
+
+        if (web != null) {
+
+            web.post(() -> {
+
+                String js =
+                    "alert(" +
+                    jsQuote(mensaje) +
+                    ")";
+
+                web.evaluateJavascript(js, null);
+            });
+        }
     }
 
     public class Bridge {
@@ -80,30 +157,7 @@ public class MainActivity extends Activity {
                 return;
             }
 
-            if (tts == null || !ttsReady) {
-                inicializarTTS();
-                return;
-            }
-
-            tts.setLanguage(Locale.ITALIAN);
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-
-                tts.speak(
-                    text,
-                    TextToSpeech.QUEUE_FLUSH,
-                    null,
-                    "italiano28"
-                );
-
-            } else {
-
-                tts.speak(
-                    text,
-                    TextToSpeech.QUEUE_FLUSH,
-                    null
-                );
-            }
+            hablar(text);
         }
 
         @JavascriptInterface
@@ -141,53 +195,60 @@ public class MainActivity extends Activity {
             recognizer.destroy();
         }
 
-        recognizer = SpeechRecognizer.createSpeechRecognizer(this);
+        recognizer =
+            SpeechRecognizer.createSpeechRecognizer(this);
 
-        recognizer.setRecognitionListener(new RecognitionListener() {
+        recognizer.setRecognitionListener(
+            new RecognitionListener() {
 
-            public void onReadyForSpeech(Bundle b) {}
+                public void onReadyForSpeech(Bundle b) {}
 
-            public void onBeginningOfSpeech() {}
+                public void onBeginningOfSpeech() {}
 
-            public void onRmsChanged(float r) {}
+                public void onRmsChanged(float r) {}
 
-            public void onBufferReceived(byte[] b) {}
+                public void onBufferReceived(byte[] b) {}
 
-            public void onEndOfSpeech() {}
+                public void onEndOfSpeech() {}
 
-            public void onError(int e) {
+                public void onError(int e) {
 
-                web.evaluateJavascript(
-                    "window.onSpeechResult('')",
-                    null
-                );
-            }
-
-            public void onPartialResults(Bundle b) {}
-
-            public void onEvent(int a, Bundle b) {}
-
-            public void onResults(Bundle b) {
-
-                ArrayList<String> r =
-                    b.getStringArrayList(
-                        SpeechRecognizer.RESULTS_RECOGNITION
+                    web.evaluateJavascript(
+                        "window.onSpeechResult('')",
+                        null
                     );
+                }
 
-                String x =
-                    r != null && !r.isEmpty()
-                    ? r.get(0)
-                    : "";
+                public void onPartialResults(Bundle b) {}
 
-                web.evaluateJavascript(
-                    "window.onSpeechResult(" + jsQuote(x) + ")",
-                    null
-                );
+                public void onEvent(int a, Bundle b) {}
+
+                public void onResults(Bundle b) {
+
+                    ArrayList<String> r =
+                        b.getStringArrayList(
+                            SpeechRecognizer.RESULTS_RECOGNITION
+                        );
+
+                    String x =
+                        r != null && !r.isEmpty()
+                        ? r.get(0)
+                        : "";
+
+                    web.evaluateJavascript(
+                        "window.onSpeechResult(" +
+                        jsQuote(x) +
+                        ")",
+                        null
+                    );
+                }
             }
-        });
+        );
 
         Intent i =
-            new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+            new Intent(
+                RecognizerIntent.ACTION_RECOGNIZE_SPEECH
+            );
 
         i.putExtra(
             RecognizerIntent.EXTRA_LANGUAGE,
@@ -218,8 +279,8 @@ public class MainActivity extends Activity {
             s.replace("\\", "\\\\")
              .replace("'", "\\'")
              .replace("\n", " ")
-             .replace("\r", " ")
-            + "'";
+             .replace("\r", " ") +
+            "'";
     }
 
     @Override
@@ -238,7 +299,8 @@ public class MainActivity extends Activity {
         if (
             requestCode == 44 &&
             grantResults.length > 0 &&
-            grantResults[0] == PackageManager.PERMISSION_GRANTED
+            grantResults[0] ==
+                PackageManager.PERMISSION_GRANTED
         ) {
 
             startListen();
