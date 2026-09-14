@@ -59,7 +59,8 @@ public class MainActivity extends Activity {
 
             if (status == TextToSpeech.SUCCESS) {
 
-                int resultado = tts.setLanguage(Locale.ITALIAN);
+                Locale italiano = Locale.forLanguageTag("it-IT");
+int resultado = tts.setLanguage(italiano);
 
                 if (resultado == TextToSpeech.LANG_MISSING_DATA ||
                     resultado == TextToSpeech.LANG_NOT_SUPPORTED) {
