@@ -41,6 +41,7 @@ public class MainActivity extends Activity {
         web.setOverScrollMode(WebView.OVER_SCROLL_NEVER);
 
         web.addJavascriptInterface(new Bridge(), "Android");
+        web.getSettings().setJavaScriptCanOpenWindowsAutomatically(true);
 
         setContentView(web);
 
