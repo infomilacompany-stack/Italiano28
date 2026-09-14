@@ -14,89 +14,249 @@ import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+
 import java.util.ArrayList;
 import java.util.Locale;
 
 public class MainActivity extends Activity {
+
     private WebView web;
     private TextToSpeech tts;
     private SpeechRecognizer recognizer;
+    private boolean ttsReady = false;
 
-    @Override public void onCreate(Bundle b) {
+    @Override
+    public void onCreate(Bundle b) {
         super.onCreate(b);
+
         web = new WebView(this);
+
         web.getSettings().setJavaScriptEnabled(true);
         web.getSettings().setDomStorageEnabled(true);
         web.getSettings().setMediaPlaybackRequiresUserGesture(false);
+
         web.setWebViewClient(new WebViewClient());
         web.setWebChromeClient(new WebChromeClient());
         web.setOverScrollMode(WebView.OVER_SCROLL_NEVER);
+
         web.addJavascriptInterface(new Bridge(), "Android");
+
         setContentView(web);
+
         web.loadUrl("file:///android_asset/index.html");
+
+        inicializarTTS();
+    }
+
+    private void inicializarTTS() {
+
         tts = new TextToSpeech(this, status -> {
-            if (status == TextToSpeech.SUCCESS) tts.setLanguage(Locale.ITALIAN);
+
+            if (status == TextToSpeech.SUCCESS) {
+
+                int resultado = tts.setLanguage(Locale.ITALIAN);
+
+                if (resultado == TextToSpeech.LANG_MISSING_DATA ||
+                    resultado == TextToSpeech.LANG_NOT_SUPPORTED) {
+
+                    ttsReady = false;
+
+                } else {
+
+                    ttsReady = true;
+                    tts.setSpeechRate(0.85f);
+                    tts.setPitch(1.0f);
+                }
+            }
         });
     }
 
     public class Bridge {
-        @JavascriptInterface public void speak(String text) {
-            if (tts != null) {
-                tts.setLanguage(Locale.ITALIAN);
-                tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "it28");
-            }
-        }
-        @JavascriptInterface public void listen() {
-            if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 44);
+
+        @JavascriptInterface
+        public void speak(String text) {
+
+            if (text == null || text.trim().isEmpty()) {
                 return;
             }
+
+            if (tts == null || !ttsReady) {
+                inicializarTTS();
+                return;
+            }
+
+            tts.setLanguage(Locale.ITALIAN);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+
+                tts.speak(
+                    text,
+                    TextToSpeech.QUEUE_FLUSH,
+                    null,
+                    "italiano28"
+                );
+
+            } else {
+
+                tts.speak(
+                    text,
+                    TextToSpeech.QUEUE_FLUSH,
+                    null
+                );
+            }
+        }
+
+        @JavascriptInterface
+        public void listen() {
+
+            if (Build.VERSION.SDK_INT >= 23 &&
+                checkSelfPermission(Manifest.permission.RECORD_AUDIO)
+                    != PackageManager.PERMISSION_GRANTED) {
+
+                requestPermissions(
+                    new String[]{Manifest.permission.RECORD_AUDIO},
+                    44
+                );
+
+                return;
+            }
+
             startListen();
         }
     }
 
     private void startListen() {
+
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            web.evaluateJavascript("window.onSpeechResult('El reconocimiento de voz no está disponible en este teléfono.')", null);
+
+            web.evaluateJavascript(
+                "window.onSpeechResult('El reconocimiento de voz no está disponible en este teléfono.')",
+                null
+            );
+
             return;
         }
-        if (recognizer != null) recognizer.destroy();
+
+        if (recognizer != null) {
+            recognizer.destroy();
+        }
+
         recognizer = SpeechRecognizer.createSpeechRecognizer(this);
+
         recognizer.setRecognitionListener(new RecognitionListener() {
+
             public void onReadyForSpeech(Bundle b) {}
+
             public void onBeginningOfSpeech() {}
+
             public void onRmsChanged(float r) {}
+
             public void onBufferReceived(byte[] b) {}
+
             public void onEndOfSpeech() {}
-            public void onError(int e) { web.evaluateJavascript("window.onSpeechResult('')", null); }
+
+            public void onError(int e) {
+
+                web.evaluateJavascript(
+                    "window.onSpeechResult('')",
+                    null
+                );
+            }
+
             public void onPartialResults(Bundle b) {}
+
             public void onEvent(int a, Bundle b) {}
+
             public void onResults(Bundle b) {
-                ArrayList<String> r = b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-                String x = r != null && !r.isEmpty() ? r.get(0) : "";
-                web.evaluateJavascript("window.onSpeechResult(" + jsQuote(x) + ")", null);
+
+                ArrayList<String> r =
+                    b.getStringArrayList(
+                        SpeechRecognizer.RESULTS_RECOGNITION
+                    );
+
+                String x =
+                    r != null && !r.isEmpty()
+                    ? r.get(0)
+                    : "";
+
+                web.evaluateJavascript(
+                    "window.onSpeechResult(" + jsQuote(x) + ")",
+                    null
+                );
             }
         });
-        Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "it-IT");
-        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "it-IT");
-        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
+
+        Intent i =
+            new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+
+        i.putExtra(
+            RecognizerIntent.EXTRA_LANGUAGE,
+            "it-IT"
+        );
+
+        i.putExtra(
+            RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE,
+            "it-IT"
+        );
+
+        i.putExtra(
+            RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+            RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+        );
+
+        i.putExtra(
+            RecognizerIntent.EXTRA_MAX_RESULTS,
+            3
+        );
+
         recognizer.startListening(i);
     }
 
     private String jsQuote(String s) {
-        return "'" + s.replace("\\", "\\\\").replace("'", "\\'").replace("\n", " ").replace("\r", " ") + "'";
+
+        return "'" +
+            s.replace("\\", "\\\\")
+             .replace("'", "\\'")
+             .replace("\n", " ")
+             .replace("\r", " ")
+            + "'";
     }
 
-    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == 44 && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) startListen();
+    @Override
+    public void onRequestPermissionsResult(
+        int requestCode,
+        String[] permissions,
+        int[] grantResults
+    ) {
+
+        super.onRequestPermissionsResult(
+            requestCode,
+            permissions,
+            grantResults
+        );
+
+        if (
+            requestCode == 44 &&
+            grantResults.length > 0 &&
+            grantResults[0] == PackageManager.PERMISSION_GRANTED
+        ) {
+
+            startListen();
+        }
     }
 
-    @Override protected void onDestroy() {
-        if (tts != null) tts.shutdown();
-        if (recognizer != null) recognizer.destroy();
+    @Override
+    protected void onDestroy() {
+
+        if (tts != null) {
+            tts.stop();
+            tts.shutdown();
+        }
+
+        if (recognizer != null) {
+            recognizer.destroy();
+        }
+
         super.onDestroy();
     }
 }
