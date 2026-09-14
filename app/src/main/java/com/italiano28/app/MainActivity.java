@@ -45,6 +45,7 @@ public class MainActivity extends Activity {
         setContentView(web);
 
         web.loadUrl("file:///android_asset/index.html");
+        web.getSettings().setTextZoom(100);
 
         inicializarTTS();
     }
