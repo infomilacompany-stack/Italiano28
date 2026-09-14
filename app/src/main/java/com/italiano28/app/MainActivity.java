@@ -60,7 +60,7 @@ public class MainActivity extends Activity {
             if (status == TextToSpeech.SUCCESS) {
 
                 Locale italiano = Locale.forLanguageTag("it-IT");
-int resultado = tts.setLanguage(italiano);
+                int resultado = tts.setLanguage(italiano);
 
                 if (resultado == TextToSpeech.LANG_MISSING_DATA ||
                     resultado == TextToSpeech.LANG_NOT_SUPPORTED) {
@@ -98,16 +98,17 @@ int resultado = tts.setLanguage(italiano);
 
     private void hablar(String texto) {
 
-        if (tts == null || !ttsReady) {
-            pendingText = texto;
-            inicializarTTS();
-            return;
-        }
+    if (tts == null || !ttsReady) {
+        pendingText = texto;
+        inicializarTTS();
+        return;
+    }
 
-        int idioma = tts.setLanguage(Locale.ITALIAN);
+    Locale italiano = Locale.forLanguageTag("it-IT");
+    int idioma = tts.setLanguage(italiano);
 
-        if (idioma == TextToSpeech.LANG_MISSING_DATA ||
-            idioma == TextToSpeech.LANG_NOT_SUPPORTED) {
+    if (idioma == TextToSpeech.LANG_MISSING_DATA ||
+        idioma == TextToSpeech.LANG_NOT_SUPPORTED) {
 
             mostrarMensaje(
                 "La voz italiana no está disponible en este teléfono."
