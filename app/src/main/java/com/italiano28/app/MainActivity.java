@@ -151,16 +151,17 @@ public class MainActivity extends Activity {
 
     public class Bridge {
 
-        @JavascriptInterface
-        public void speak(String text) {
+       @JavascriptInterface
+public void speak(String text) {
 
-            if (text == null || text.trim().isEmpty()) {
-                return;
-            }
+    mostrarMensaje("Recibí: " + text);
 
-            hablar(text);
-        }
+    if (text == null || text.trim().isEmpty()) {
+        return;
+    }
 
+    hablar(text);
+}
         @JavascriptInterface
         public void listen() {
 
